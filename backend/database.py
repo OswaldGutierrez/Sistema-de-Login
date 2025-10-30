@@ -1,23 +1,23 @@
-import psycopg2
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-def conexionBD():
+# URL de conexión a tu base de datos Neon (PostgreSQL)
+DATABASE_URL = "postgresql+psycopg2://neondb_owner:npg_0IdJlym1siSh@ep-square-flower-adq56ghg-pooler.c-2.us-east-1.aws.neon.tech/neondb"
+
+# Crear el motor
+engine = create_engine(DATABASE_URL)
+
+# Crea una clase base para los modelos ORM
+Base = declarative_base()
+
+# Configurar la sesión
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Dependencia para FastAPI
+def get_db():
+    db = SessionLocal()
     try:
-        conexion = psycopg2.connect(
-            host="ep-square-flower-adq56ghg-pooler.c-2.us-east-1.aws.neon.tech",
-            database="neondb",
-            user="neondb_owner",
-            password="npg_0IdJlym1siSh"
-        )
-        print("Conexión exitosa")
-        return conexion
-
-    except psycopg2.Error as e:
-        print(f"No se pudo conectar a la BD: {e}")
-        return None
-
-
-if __name__ == "__main__":
-    conexion = conexionBD()
-    if conexion:
-        print(conexion)
-        conexion.close()
+        yield db
+    finally:
+        db.close()

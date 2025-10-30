@@ -1,57 +1,43 @@
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from database import conexionBD  # ← Sin "backend."
-import psycopg2
+from sqlalchemy.orm import Session
+from database import get_db, engine
+from models import Base, Usuario
+
+# Crear tablas si no existen (solo una vez)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Login Proyecto Integrador 1")
 
-# Configurar CORS
+# Configurar CORS (para Angular)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],  # URL de Angular
+    allow_origins=["http://localhost:4200"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ENDPOINTS
+# Endpoint simple de prueba
 @app.get("/estado")
 def estado():
-    return{"status": "Funcionando"}
+    return {"status": "Funcionando"}
 
-# Temporal - Es para verificar los usuarios
+# Obtener todos los usuarios
 @app.get("/usuarios")
-def obtenerUsuarios():
-    conexion = conexionBD()
-    if not conexion:
-        raise HTTPException(status_code=500, detail="Error al conectar con la base de datos")
-    try:
-        with conexion.cursor() as cursor:
-            query = "SELECT * FROM tbl_usuariosLogin"
-            cursor.execute(query)
-            usuarios = cursor.fetchall()
-            return {"usuarios": usuarios}
-    except psycopg2.Error as e:
-        raise HTTPException(status_code=500, detail=f"Error en la consulta: {e}")
-    finally:
-        conexion.close()
+def obtener_usuarios(db: Session = Depends(get_db)):
+    usuarios = db.query(Usuario).all()
+    return {"usuarios": usuarios}
 
+# Validar login
 @app.post("/validar-login")
-def validarLogin(pUsuario: str, pClave: str):
-    conexion = conexionBD()
-    if not conexion:
-        raise HTTPException(status_code=500, detail="Error al conectar con la base de datos")
-    try:
-        with conexion.cursor() as cursor:
-            query = "SELECT nombreUsuario FROM tbl_usuariosLogin WHERE usuario= %s AND clave = %s"
-            valores = (pUsuario, pClave)
-            cursor.execute(query, valores)
-            usuario = cursor.fetchone()
-            if usuario:
-                return{"login": True, "Nombre": usuario[0]}
-            else:
-                return{"login": False}
-    except psycopg2.Error as e:
-        raise HTTPException(status_code=500, detail=f"Error en la consulta: {e}")
-    finally:
-        conexion.close()
+def validar_login(pUsuario: str, pClave: str, db: Session = Depends(get_db)):
+    usuario = (
+        db.query(Usuario)
+        .filter(Usuario.usuariocorporativo == pUsuario, Usuario.clave == pClave)
+        .first()
+    )
+    if usuario:
+        return {"login": True, "Nombre": usuario.nombreusuario}
+    else:
+        return {"login": False}

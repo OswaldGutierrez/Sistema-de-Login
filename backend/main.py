@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 # Endpoint simple de prueba
-@app.get("/estado")
+@app.get("/estadoHealth")
 def estado():
     return {"status": "Funcionando"}
 
